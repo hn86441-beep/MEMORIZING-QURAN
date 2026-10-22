@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "نُور الحِفظ",
+  "short_name": "نُور الحِفظ",
+  "description": "احفظ القرآن بالكتابة والاستماع",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "categories": ["education", "books"],
+  "background_color": "#0f2a2e",
+  "theme_color": "#0f2a2e",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

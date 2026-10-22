@@ -50,4 +50,11 @@ button.gold{background:var(--gold);color:var(--ink);border-color:var(--gold);fon
 .look .w.sing:not(.lit){color:var(--paper)}
 .w.lit{animation:flash .9s}
 @keyframes flash{30%{text-shadow:0 0 44px #fff,0 0 18px var(--gold)}}
+.astat{font-size:.75rem;color:var(--mute)}
+#install{border-color:var(--gold);color:var(--gold)}
+.similar{margin:18px auto 0;max-width:640px;background:var(--panel);border-right:3px solid var(--err);border-radius:10px;padding:12px 16px;text-align:right}
+.similar h3{margin:0 0 6px;font-size:.9rem;color:var(--err);font-weight:600}
+.similar p{margin:8px 0;font-family:"Amiri Quran",serif;font-size:1.3rem;line-height:2}
+.similar small{display:block;font:.72rem "Readex Pro",sans-serif;color:var(--mute)}
+.similar mark{background:#e8c87233;color:var(--gold);border-radius:4px;padding:0 .15em}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

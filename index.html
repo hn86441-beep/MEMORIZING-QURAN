@@ -23,6 +23,7 @@
     <span>✍️ <b id="st-words">0</b> كلمة</span>
     <span>🎯 <b id="st-acc">—</b></span>
   </div>
+  <button id="wbtn">🎯 ورد اليوم</button>
   <button id="install" hidden>تثبيت التطبيق</button>
 </header>
 
@@ -34,6 +35,7 @@
     <div class="modes" role="group" aria-label="وضع التدريب">
       <button id="m-memory" class="on">من الذاكرة</button>
       <button id="m-look">بالنظر</button>
+      <button id="m-prog">بالتدرّج</button>
     </div>
     <button id="start" class="gold">ابدأ</button>
   </section>
@@ -71,6 +73,17 @@
 
   <p class="empty" id="empty">اختر سورة وحدّد الآيات ثم اضغط «ابدأ». تحتاج اتصالاً بالإنترنت في أول مرة، ثم تُحفظ السورة على جهازك.</p>
 </main>
+<dialog id="wird" aria-labelledby="wt">
+  <form method="dialog">
+    <h2 id="wt">ورد اليوم</h2>
+    <label>نوع الهدف <select id="w-type"><option value="ayat">عدد الآيات</option><option value="min">عدد الدقائق</option></select></label>
+    <label>المقدار <input type="number" id="w-n" min="1" max="500" value="5"></label>
+    <label>وقت التذكير (اختياري) <input type="time" id="w-time"></label>
+    <p id="w-msg" class="note" aria-live="polite"></p>
+    <div class="actions"><button id="w-save" class="gold">حفظ</button><button value="cancel">إغلاق</button></div>
+  </form>
+</dialog>
+<div id="toast" class="toast" role="status" hidden></div>
 <script src="app.js"></script>
 </body>
 </html>

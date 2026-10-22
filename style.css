@@ -36,4 +36,18 @@ button.gold{background:var(--gold);color:var(--ink);border-color:var(--gold);fon
 .actions{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
 .note,.empty{color:var(--mute);font-size:.8rem;margin-top:18px;text-align:center}
 .done{text-align:center;margin-top:40px}.done h2{font-family:"Amiri Quran",serif;color:var(--gold);font-size:2rem;font-weight:400}
+.audio{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;margin:0 auto 18px;padding:10px 14px;background:var(--panel);border-radius:12px;width:fit-content;max-width:100%}
+.audio select{min-width:0;padding:6px 8px;font-size:.85rem}
+.chk{flex-direction:row;align-items:center;gap:6px;font-size:.8rem;cursor:pointer}
+.eq{display:flex;gap:3px;align-items:flex-end;height:22px;width:30px;opacity:.35}
+.eq i{flex:1;height:30%;background:var(--gold);border-radius:2px}
+.playing .eq{opacity:1}
+.playing .eq i{animation:eq .9s infinite ease-in-out}
+.playing .eq i:nth-child(2){animation-delay:.15s}.playing .eq i:nth-child(3){animation-delay:.3s}
+.playing .eq i:nth-child(4){animation-delay:.45s}.playing .eq i:nth-child(5){animation-delay:.6s}
+@keyframes eq{50%{height:100%}}
+.w.sing{border-color:var(--paper)}
+.look .w.sing:not(.lit){color:var(--paper)}
+.w.lit{animation:flash .9s}
+@keyframes flash{30%{text-shadow:0 0 44px #fff,0 0 18px var(--gold)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

@@ -2,12 +2,21 @@ const $ = id => document.getElementById(id);
 const API = "https://api.alquran.cloud/v1/surah/";
 // بيانات احتياطية تعمل بدون إنترنت
 const FALLBACK = {112:["قُلْ هُوَ ٱللَّهُ أَحَدٌ","ٱللَّهُ ٱلصَّمَدُ","لَمْ يَلِدْ وَلَمْ يُولَدْ","وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدٌۢ"]};
-// توحيد الإملاء: الرسم العثماني (الصلوٰة) يُقبل بالإملاء المعتاد (الصلاة)
-const norm = s => s.replace(/و[\u064B-\u065F]*\u0670/g,"ا").replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,"")
-  .replace(/[أإآٱ]/g,"ا").replace(/ا/g,"").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/\s+/g," ").trim();
+// توحيد الإملاء بين الرسم العثماني والإملاء المعتاد (الهمزات لا تُشترط، والألف الخنجرية تُطابَق بحسب الكلمة)
+const norm = s => s.replace(/و\u0670/g,"\u0003").replace(/ى\u0670/g,"\u0002").replace(/\u0670/g,"\u0001")
+  .replace(/[\u06E6\u06E7]/g,"\u0004").replace(/\u06E5/g,"\u0005")
+  .replace(/[\u064B-\u065F\u06D6-\u06ED\u0640]/g,"").replace(/[أإءؤئ]/g,"").replace(/[آٱ]/g,"ا")
+  .replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/\s+/g,"");
+// كلمات يحذف فيها الإملاء المعتاد الألف (ذلك، هذا، الرحمن...) فتكون الألف الخنجرية اختيارية، وفي غيرها (كتاب، عالمين) مطلوبة
+const OPT=["ذلك","هذ","رحمن","لكن","ولك","هلا","سموت"];
+const same = (typed,target) => {
+  if(typed===target) return true;
+  const key=target.replace(/\u0001/g,""), opt=OPT.some(x=>key.includes(x))||key==="له";
+  return new RegExp("^"+target.replace(/\u0001/g,opt?"ا?":"ا").replace(/\u0002/g,"[اي]").replace(/\u0003/g,"[او]").replace(/\u0004/g,"ي?").replace(/\u0005/g,"و?")+"$").test(typed);
+};
 
 const tokens=t=>t.split(" ").reduce((o,w)=>{if(norm(w)===""&&o.length)o[o.length-1]+=" "+w;else o.push(w);return o},[]); // علامات الوقف تُلحق بالكلمة السابقة
-let locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
+let prog=false, stg=1, locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
 const store = {
   get(){try{return JSON.parse(localStorage.getItem("hifz"))||{}}catch{return{}}},
   set(v){try{localStorage.setItem("hifz",JSON.stringify(v))}catch{}}
@@ -16,14 +25,15 @@ const store = {
 function renderStats(){
   const s=store.get();
   $("st-streak").textContent=s.streak||0; $("st-words").textContent=s.words||0;
-  $("st-acc").textContent=(s.words+s.errors)>0?Math.round(100*s.words/(s.words+s.errors))+"%":"—";
+  {const w=s.words||0,e=s.errors||0;$("st-acc").textContent=w+e>0?Math.round(100*w/(w+e))+"%":"—"}
 }
-function today(){return new Date().toISOString().slice(0,10)}
+const ds=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function today(){return ds(new Date())}
 function bump(key,n=1){
   const s=store.get(); s[key]=(s[key]||0)+n;
   if(key==="words"&&s.last!==today()){
-    const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
-    s.streak=s.last===y?(s.streak||0)+1:1; s.last=today();
+    const y=new Date();y.setDate(y.getDate()-1);
+    s.streak=s.last===ds(y)?(s.streak||0)+1:1; s.last=today();
   }
   store.set(s); renderStats();
 }
@@ -45,7 +55,7 @@ async function getSurah(n){
   try{
     const d=(await (await fetch(API+n+"/quran-uthmani")).json()).data;
     let list=d.ayahs.map(a=>a.text); const nums=d.ayahs.map(a=>a.number);
-    if(n!==1){const w=list[0].split(" ");if(norm(w.slice(0,4).join(" "))===norm("بسم الله الرحمن الرحيم"))list[0]=w.slice(4).join(" ")}
+    if(n!==1){const w=list[0].split(" ");if(same(norm("بسم الله الرحمن الرحيم"),norm(w.slice(0,4).join(" "))))list[0]=w.slice(4).join(" ")}
     const out={name:d.name,list,nums}; try{localStorage.setItem(k,JSON.stringify(out))}catch{} return out;
   }catch{ if(FALLBACK[n]) return {name:"سورة الإخلاص",list:FALLBACK[n],nums:[6222,6223,6224,6225]}; throw new Error("offline") }
 }
@@ -58,26 +68,35 @@ async function start(){
     const s=await getSurah(n); surahName=s.name;
     ayahs=s.list.slice(f-1,t).map((text,i)=>({no:f+i,text,num:s.nums[f-1+i]}));
   }catch{alert("تعذر تحميل السورة. تحقق من الإنترنت وحاول مرة أخرى.");$("start").disabled=false;return}
-  $("start").disabled=false; idx=0; errors=0; typed=0;
+  $("start").disabled=false; idx=0; errors=0; typed=0; stg=1;
+  if(!ayahs.length){alert("هذا النطاق خارج آيات السورة. اختر آيات موجودة.");return}
   $("empty").hidden=$("done").hidden=true; $("stage").hidden=false; loadAyah(); loadQuran();
 }
 function loadAyah(){
   const a=ayahs[idx]; words=tokens(a.text); wi=0;
-  $("ayah-no").textContent=`${surahName} — الآية ${a.no}`; $("prog").textContent=`${idx+1} / ${ayahs.length}`;
+  $("ayah-no").textContent=`${surahName} — الآية ${a.no}`; $("prog").textContent=`${idx+1} / ${ayahs.length}`+(prog?` — المرحلة ${stg} من 3`:"");
   $("bar").style.width=(idx/ayahs.length*100)+"%";
   $("stage").classList.toggle("look",look);
   $("ayah").innerHTML=words.map((w,i)=>`<span class="w" data-i="${i}">${w}</span>`).join("");
+  if(prog){ // المرحلة 1: كاملة، 2: يختفي نصفها عشوائياً، 3: كلها مخفية
+    const n=words.length, hide=stg===1?0:stg===3?n:Math.max(1,Math.floor(n/2));
+    const hid=new Set([...words.keys()].sort(()=>Math.random()-.5).slice(0,hide));
+    document.querySelectorAll(".w").forEach((e,i)=>e.classList.toggle("show",!hid.has(i)));
+  }
   locked=false; if(!cont)stop(); $("similar").hidden=true; mark(); $("typer").value=""; $("typer").focus();
   if($("auto").checked&&!cont) play();
 }
 function mark(){document.querySelectorAll(".w").forEach(e=>e.classList.toggle("cur",+e.dataset.i===wi))}
 function accept(skip=false){
+  if(locked||wi>=words.length) return;
   $("similar").hidden=true;
   const e=document.querySelector(`.w[data-i="${wi}"]`); e.classList.remove("hint"); e.classList.add(skip?"skip":"lit");
   if(!skip){bump("words");typed++} wi++; $("typer").value="";
   if(wi>=words.length) return finishAyah(); mark();
 }
 function finishAyah(){
+  if(prog&&stg<3){locked=true;stg++;$("typer").value="";setTimeout(loadAyah,700);return}
+  stg=1; addWird("ayat",1);
   $("ayah").insertAdjacentHTML("beforeend",`<span class="end">﴿${ayahs[idx].no}﴾</span>`);
   locked=true; if(!cont)stop(); idx++; $("bar").style.width=(idx/ayahs.length*100)+"%";
   setTimeout(()=>idx>=ayahs.length?finish():loadAyah(),900);
@@ -87,20 +106,26 @@ function finish(){
   $("stage").hidden=true; $("done").hidden=false;
   $("summary").textContent=`كتبت ${typed} كلمة بـ ${errors} محاولة خاطئة.`;
 }
-$("typer").addEventListener("input",e=>{
-  const el=e.target, v=norm(el.value), target=norm(words[wi]);
+function check(force){
+  if(locked||wi>=words.length) return;
+  const el=$("typer"), v=norm(el.value), t=norm(words[wi]);
   el.classList.remove("bad","good");
   if(!v) return;
-  if(v===target){el.classList.add("good");accept();return}
-  if(v.length>=target.length||!target.startsWith(v)&&v.length>1){
-    if(v.length>=target.length){void el.offsetWidth;el.classList.add("bad");errors++;bump("errors");similar(v);el.value=""}
-  }
-});
-$("hint").onclick=()=>{const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=(words[wi].match(/^(?:.[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]*){1,3}/u)||[""])[0]+"…";e.classList.add("hint");$("typer").focus()};
-$("reveal").onclick=()=>{const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=words[wi];accept(true)};
-$("restart").onclick=loadAyah;
-$("m-memory").onclick=()=>{look=false;$("m-memory").classList.add("on");$("m-look").classList.remove("on");$("stage").classList.remove("look")};
-$("m-look").onclick=()=>{look=true;$("m-look").classList.add("on");$("m-memory").classList.remove("on");$("stage").classList.add("look")};
+  if(same(v,t)){el.classList.add("good");accept();return}
+  if(force||v.length>=t.length){void el.offsetWidth;el.classList.add("bad");errors++;bump("errors");similar(v);el.value=""}
+}
+$("typer").addEventListener("input",()=>check(false));
+$("hint").onclick=()=>{if(locked||wi>=words.length)return;const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=(words[wi].match(/^(?:.[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]*){1,3}/u)||[""])[0]+"…";e.classList.add("hint");$("typer").focus()};
+$("reveal").onclick=()=>{if(locked||wi>=words.length)return;const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=words[wi];accept(true)};
+$("restart").onclick=()=>{if(!locked)loadAyah()};
+function setMode(m){
+  look=m==="look"; prog=m==="prog"; stg=1;
+  ["memory","look","prog"].forEach(k=>$("m-"+k).classList.toggle("on",k===m));
+  document.querySelectorAll(".w.show").forEach(e=>e.classList.remove("show"));
+  $("stage").classList.toggle("look",look);
+  if(!$("stage").hidden&&ayahs[idx]&&!locked) loadAyah();
+}
+["memory","look","prog"].forEach(k=>$("m-"+k).onclick=()=>setMode(k));
 $("start").onclick=start; $("again").onclick=start; $("surah").onchange=syncRange;
 /* ===== الصوت ===== */
 const prefs=(()=>{try{return JSON.parse(localStorage.getItem("hifzPrefs"))||{}}catch{return{}}})();
@@ -144,7 +169,7 @@ audio.ontimeupdate=()=>{
   document.querySelectorAll(".w").forEach((e,k)=>e.classList.toggle("sing",k===i));
 };
 $("play").onclick=()=>{audio.paused?play():stop();$("typer").focus()};
-$("typer").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.shiftKey){e.preventDefault();audio.paused?play():stop()}});
+$("typer").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(e.shiftKey)audio.paused?play():stop();else check(true)}});
 
 /* ===== تلاوة متصلة وتنزيل الصوت ===== */
 $("playall").onclick=()=>{ if(cont)stop(); else {cont=true;play(idx)} $("typer").focus() };
@@ -172,7 +197,7 @@ function loadQuran(){
       const d=(await (await fetch("https://api.alquran.cloud/v1/quran/quran-uthmani")).json()).data.surahs, bsm=norm("بسم الله الرحمن الرحيم"); Q=[];
       for(const s of d) s.ayahs.forEach((a,i)=>{
         let t=a.text;
-        if(s.number!==1&&i===0){const w=t.split(" "); if(norm(w.slice(0,4).join(" "))===bsm) t=w.slice(4).join(" ")}
+        if(s.number!==1&&i===0){const w=t.split(" "); if(same(bsm,norm(w.slice(0,4).join(" ")))) t=w.slice(4).join(" ")}
         Q.push({sn:s.name,s:s.number,a:a.numberInSurah,t,n:" "+tokens(t).map(norm).join(" ")+" "});
       });
     }catch{Q=null;qLoad=null}
@@ -192,8 +217,8 @@ function similar(typedNorm){
       if(hits.length>=6)break;
     }
     if(!hits.length) continue;
-    hits.sort((a,b)=>(b.nx===typedNorm)-(a.nx===typedNorm));
-    const mine=hits[0].nx===typedNorm;
+    hits.sort((a,b)=>same(typedNorm,b.nx)-same(typedNorm,a.nx));
+    const mine=same(typedNorm,hits[0].nx);
     $("similar").innerHTML=`<h3>${mine?"الكلمة التي كتبتها وردت في آية أخرى بنفس السياق":"هذا السياق ورد في آيات أخرى فانتبه"}</h3>`+
       hits.slice(0,3).map(h=>`<p>${tokens(h.q.t).map((w,i)=>i===h.ix?`<mark>${w}</mark>`:w).join(" ")}<small>${h.q.sn} — الآية ${h.q.a}</small></p>`).join("");
     $("similar").hidden=false; return;
@@ -206,4 +231,61 @@ addEventListener("beforeinstallprompt",e=>{e.preventDefault();dip=e;$("install")
 $("install").onclick=async()=>{if(!dip)return;dip.prompt();await dip.userChoice;dip=null;$("install").hidden=true};
 if("serviceWorker" in navigator) addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 
-renderStats(); loadSurahList();
+/* ===== الورد اليومي والتذكير ===== */
+let lastAct=0, pend=0, lastSync="";
+const W={get(){try{return JSON.parse(localStorage.getItem("hifzWird"))||{}}catch{return{}}},set(v){try{localStorage.setItem("hifzWird",JSON.stringify(v))}catch{}}};
+function day(){const s=store.get();s.days=s.days||{};const k=today();s.days[k]=s.days[k]||{ayat:0,secs:0};return [s,s.days[k]]}
+const goalDone=(w,d)=>!!w.n&&(w.type==="min"?d.secs>=w.n*60:d.ayat>=w.n);
+function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;setTimeout(()=>t.hidden=true,3500)}
+function addWird(k,n){
+  const [s,d]=day(); d[k]+=n;
+  const ks=Object.keys(s.days).sort(); while(ks.length>45) delete s.days[ks.shift()];
+  store.set(s); renderWird();
+}
+function renderWird(){
+  const w=W.get(), [s,d]=day();
+  if(!w.n){$("wbtn").textContent="🎯 حدّد ورد اليوم";return}
+  const done=goalDone(w,d);
+  $("wbtn").textContent="🎯 "+(w.type==="min"?`${Math.floor(d.secs/60)}/${w.n} د`:`${d.ayat}/${w.n} آية`)+(done?" ✓":"");
+  if(done&&!d.done){d.done=1;store.set(s);toast("ما شاء الله، أتممت ورد اليوم 🌙")}
+  const j=JSON.stringify({time:w.time||"",done,day:today(),notified:s.notified||""});
+  if(j!==lastSync&&"caches" in window){lastSync=j;caches.open("hifz-data").then(c=>c.put("wird.json",new Response(j))).catch(()=>{})}
+}
+["input","keydown","click"].forEach(ev=>document.addEventListener(ev,()=>lastAct=Date.now(),true));
+setInterval(()=>{ // عدّاد الدقائق: فقط أثناء التدريب الفعلي
+  if(!$("stage").hidden&&!document.hidden&&Date.now()-lastAct<30000) pend++;
+  if(pend>=10){addWird("secs",pend);pend=0}
+},1000);
+setInterval(async()=>{ // تذكير أثناء فتح التطبيق
+  const w=W.get(); if(!w.time||!("Notification" in window)||Notification.permission!=="granted") return;
+  const [s,d]=day(), n=new Date(), [h,m]=w.time.split(":").map(Number);
+  if(n.getHours()*60+n.getMinutes()<h*60+m||goalDone(w,d)||s.notified===today()) return;
+  s.notified=today(); store.set(s);
+  const o={body:"حان وقت وردك اليوم. ابدأ ولو بآية.",icon:"icon-192.png",tag:"wird",lang:"ar",dir:"rtl"};
+  try{(await navigator.serviceWorker.ready).showNotification("نُور الحِفظ",o)}catch{try{new Notification("نُور الحِفظ",o)}catch{}}
+},30000);
+$("wbtn").onclick=()=>{
+  const w=W.get(); $("w-type").value=w.type||"ayat"; $("w-n").value=w.n||5; $("w-time").value=w.time||""; $("w-msg").textContent="";
+  if($("wird").showModal) $("wird").showModal();
+};
+$("w-save").onclick=async e=>{
+  e.preventDefault();
+  const n=Math.min(500,Math.floor(+$("w-n").value)||0);
+  if(n<1){$("w-msg").textContent="أدخل مقداراً صحيحاً (1 أو أكثر).";return}
+  const w={type:$("w-type").value,n,time:$("w-time").value}; W.set(w); let msg="";
+  if(w.time){
+    if(!("Notification" in window)) msg="متصفحك لا يدعم الإشعارات.";
+    else{
+      const p=Notification.permission==="granted"?"granted":await Notification.requestPermission();
+      if(p!=="granted") msg="لم تسمح بالإشعارات، فلن يصلك تذكير.";
+      else{
+        msg="سيصلك التذكير عندما يكون التطبيق مفتوحاً ولو في الخلفية. وعلى أندرويد المثبّت قد يصل أحياناً وهو مغلق.";
+        try{const r=await navigator.serviceWorker.ready; if(r.periodicSync) await r.periodicSync.register("hifz-wird",{minInterval:216e5})}catch{}
+      }
+    }
+  }
+  lastSync=""; renderWird();
+  if(msg) $("w-msg").textContent=msg; else $("wird").close();
+};
+
+renderStats(); renderWird(); loadSurahList();

@@ -36,13 +36,21 @@
     <div class="meta"><span id="ayah-no"></span><span id="prog"></span></div>
     <div class="bar"><i id="bar"></i></div>
     <p class="ayah" id="ayah" aria-live="polite"></p>
+    <div class="audio" id="audio">
+      <button id="play" class="gold">▶ استمع</button>
+      <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <select id="reciter" aria-label="القارئ"><option value="ar.alafasy">مشاري العفاسي</option><option value="ar.husary">محمود الحصري</option><option value="ar.minshawi">المنشاوي</option></select>
+      <select id="speed" aria-label="سرعة التلاوة"><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option></select>
+      <label class="chk"><input type="checkbox" id="auto"> إملاء (تشغيل تلقائي)</label>
+      <label class="chk"><input type="checkbox" id="loop"> تكرار</label>
+    </div>
     <input id="typer" type="text" dir="rtl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="اكتب الكلمة التالية…" aria-label="اكتب الكلمة التالية">
     <div class="actions">
       <button id="hint">تلميح (حرف)</button>
       <button id="reveal">أظهر الكلمة</button>
       <button id="restart">أعد الآية</button>
     </div>
-    <p class="note">لا يشترط التشكيل ولا الهمزات: اكتب «الرحمن» أو «الرَّحمٰن» وكلاهما يُقبل.</p>
+    <p class="note">لا يشترط التشكيل ولا الهمزات. اضغط Shift+Enter للاستماع دون ترك لوحة المفاتيح. في وضع «بالنظر» تتحرك الإضاءة على الكلمات مع صوت القارئ.</p>
   </section>
 
   <section class="done" id="done" hidden>

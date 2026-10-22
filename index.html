@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نُور الحِفظ — احفظ القرآن بالكتابة</title>
+<meta name="description" content="احفظ القرآن الكريم بالكتابة من الذاكرة: كل كلمة تكتبها صحيحة تضيء أمامك.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Readex+Pro:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>نُور الحِفظ</h1>
+  <div class="stats" aria-live="polite">
+    <span>🔥 <b id="st-streak">0</b> يوم</span>
+    <span>✍️ <b id="st-words">0</b> كلمة</span>
+    <span>🎯 <b id="st-acc">—</b></span>
+  </div>
+</header>
+
+<main>
+  <section class="controls">
+    <label>السورة <select id="surah"></select></label>
+    <label>من آية <input type="number" id="from" min="1" value="1"></label>
+    <label>إلى آية <input type="number" id="to" min="1" value="1"></label>
+    <div class="modes" role="group" aria-label="وضع التدريب">
+      <button id="m-memory" class="on">من الذاكرة</button>
+      <button id="m-look">بالنظر</button>
+    </div>
+    <button id="start" class="gold">ابدأ</button>
+  </section>
+
+  <section class="stage" id="stage" hidden>
+    <div class="meta"><span id="ayah-no"></span><span id="prog"></span></div>
+    <div class="bar"><i id="bar"></i></div>
+    <p class="ayah" id="ayah" aria-live="polite"></p>
+    <input id="typer" type="text" dir="rtl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="اكتب الكلمة التالية…" aria-label="اكتب الكلمة التالية">
+    <div class="actions">
+      <button id="hint">تلميح (حرف)</button>
+      <button id="reveal">أظهر الكلمة</button>
+      <button id="restart">أعد الآية</button>
+    </div>
+    <p class="note">لا يشترط التشكيل ولا الهمزات: اكتب «الرحمن» أو «الرَّحمٰن» وكلاهما يُقبل.</p>
+  </section>
+
+  <section class="done" id="done" hidden>
+    <h2>ما شاء الله، أتممت المقطع</h2>
+    <p id="summary"></p>
+    <button class="gold" id="again">تدرّب مرة أخرى</button>
+  </section>
+
+  <p class="empty" id="empty">اختر سورة وحدّد الآيات ثم اضغط «ابدأ». تحتاج اتصالاً بالإنترنت في أول مرة، ثم تُحفظ السورة على جهازك.</p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

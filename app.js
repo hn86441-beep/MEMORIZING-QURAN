@@ -2,9 +2,11 @@ const $ = id => document.getElementById(id);
 const API = "https://api.alquran.cloud/v1/surah/";
 // بيانات احتياطية تعمل بدون إنترنت
 const FALLBACK = {112:["قُلْ هُوَ ٱللَّهُ أَحَدٌ","ٱللَّهُ ٱلصَّمَدُ","لَمْ يَلِدْ وَلَمْ يُولَدْ","وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدٌۢ"]};
-const norm = s => s.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,"")
-  .replace(/[أإآٱ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/\s+/g," ").trim();
+// توحيد الإملاء: الرسم العثماني (الصلوٰة) يُقبل بالإملاء المعتاد (الصلاة)
+const norm = s => s.replace(/و[\u064B-\u065F]*\u0670/g,"ا").replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g,"")
+  .replace(/[أإآٱ]/g,"ا").replace(/ا/g,"").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/ؤ/g,"و").replace(/ئ/g,"ي").replace(/\s+/g," ").trim();
 
+const tokens=t=>t.split(" ").reduce((o,w)=>{if(norm(w)===""&&o.length)o[o.length-1]+=" "+w;else o.push(w);return o},[]); // علامات الوقف تُلحق بالكلمة السابقة
 let locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
 const store = {
   get(){try{return JSON.parse(localStorage.getItem("hifz"))||{}}catch{return{}}},
@@ -43,7 +45,7 @@ async function getSurah(n){
   try{
     const d=(await (await fetch(API+n+"/quran-uthmani")).json()).data;
     let list=d.ayahs.map(a=>a.text); const nums=d.ayahs.map(a=>a.number);
-    if(n!==1){const w=list[0].split(" ");if(norm(w.slice(0,4).join(" "))==="بسم الله الرحمن الرحيم")list[0]=w.slice(4).join(" ")}
+    if(n!==1){const w=list[0].split(" ");if(norm(w.slice(0,4).join(" "))===norm("بسم الله الرحمن الرحيم"))list[0]=w.slice(4).join(" ")}
     const out={name:d.name,list,nums}; try{localStorage.setItem(k,JSON.stringify(out))}catch{} return out;
   }catch{ if(FALLBACK[n]) return {name:"سورة الإخلاص",list:FALLBACK[n],nums:[6222,6223,6224,6225]}; throw new Error("offline") }
 }
@@ -60,7 +62,7 @@ async function start(){
   $("empty").hidden=$("done").hidden=true; $("stage").hidden=false; loadAyah();
 }
 function loadAyah(){
-  const a=ayahs[idx]; words=a.text.split(" "); wi=0;
+  const a=ayahs[idx]; words=tokens(a.text); wi=0;
   $("ayah-no").textContent=`${surahName} — الآية ${a.no}`; $("prog").textContent=`${idx+1} / ${ayahs.length}`;
   $("bar").style.width=(idx/ayahs.length*100)+"%";
   $("stage").classList.toggle("look",look);
@@ -93,7 +95,7 @@ $("typer").addEventListener("input",e=>{
     if(v.length>=target.length){void el.offsetWidth;el.classList.add("bad");errors++;bump("errors");el.value=""}
   }
 });
-$("hint").onclick=()=>{const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=words[wi].slice(0,2)+"…";e.classList.add("hint");$("typer").focus()};
+$("hint").onclick=()=>{const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=(words[wi].match(/^(?:.[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]*){1,3}/u)||[""])[0]+"…";e.classList.add("hint");$("typer").focus()};
 $("reveal").onclick=()=>{const e=document.querySelector(`.w[data-i="${wi}"]`);e.textContent=words[wi];accept(true)};
 $("restart").onclick=loadAyah;
 $("m-memory").onclick=()=>{look=false;$("m-memory").classList.add("on");$("m-look").classList.remove("on");$("stage").classList.remove("look")};

@@ -16,7 +16,7 @@ const same = (typed,target) => {
 };
 
 const tokens=t=>t.split(" ").reduce((o,w)=>{if(norm(w)===""&&o.length)o[o.length-1]+=" "+w;else o.push(w);return o},[]); // علامات الوقف تُلحق بالكلمة السابقة
-let tfs=null, curSurah=0, prog=false, stg=1, locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
+let tjs=null, amb=null, reciting=false, AC=null, tfs=null, curSurah=0, prog=false, stg=1, locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
 const store = {
   get(){try{return JSON.parse(localStorage.getItem("hifz"))||{}}catch{return{}}},
   set(v){try{localStorage.setItem("hifz",JSON.stringify(v))}catch{}}
@@ -70,7 +70,7 @@ async function start(){
   }catch{alert("تعذر تحميل السورة. تحقق من الإنترنت وحاول مرة أخرى.");$("start").disabled=false;return}
   $("start").disabled=false; idx=0; errors=0; typed=0; stg=1;
   if(!ayahs.length){alert("هذا النطاق خارج آيات السورة. اختر آيات موجودة.");return}
-  $("empty").hidden=$("done").hidden=true; $("stage").hidden=false; tfs=null; curSurah=n; loadAyah(); loadQuran(); loadTafsir(n);
+  $("empty").hidden=$("done").hidden=true; $("stage").hidden=false; tfs=null; tjs=null; curSurah=n; loadAyah(); loadQuran(); loadTafsir(n); if($("tj").checked) loadTajweed(n);
 }
 function loadAyah(){
   const a=ayahs[idx]; words=tokens(a.text); wi=0;
@@ -83,7 +83,7 @@ function loadAyah(){
     const hid=new Set([...words.keys()].sort(()=>Math.random()-.5).slice(0,hide));
     document.querySelectorAll(".w").forEach((e,i)=>e.classList.toggle("show",!hid.has(i)));
   }
-  showTafsir();
+  showTafsir(); applyTajweed();
   locked=false; if(!cont)stop(); $("similar").hidden=true; mark(); $("typer").value=""; $("typer").focus();
   if($("auto").checked&&!cont) play();
 }
@@ -136,6 +136,7 @@ const savePrefs=()=>{try{localStorage.setItem("hifzPrefs",JSON.stringify({r:$("r
 ["reciter","speed","auto","loop"].forEach(id=>$(id).addEventListener("change",()=>{savePrefs();if(id==="speed")audio.playbackRate=+$("speed").value;if(id==="reciter"&&!audio.paused)play(playingIdx)}));
 const audio=new Audio(); audio.preload="auto";
 function setPlaying(on){
+  reciting=on||cont; ambLevel();
   $("audio").classList.toggle("playing",on);
   $("play").textContent=on&&!cont?"⏸ إيقاف":"▶ استمع";
   $("playall").textContent=cont?"⏹ إيقاف المتصلة":"⏩ تلاوة متصلة";
@@ -308,5 +309,90 @@ function showTafsir(){
 }
 try{$("tafsir").open=localStorage.getItem("hifzTafsir")!=="0"}catch{$("tafsir").open=true}
 $("tafsir").addEventListener("toggle",()=>{try{localStorage.setItem("hifzTafsir",$("tafsir").open?"1":"0")}catch{}});
+
+/* ===== أحكام التجويد فوق الكلمات (من إصدار quran-tajweed في alquran.cloud) ===== */
+const TJN={m:"مدّ لازم",o:"مدّ واجب",p:"مدّ جائز",n:"مدّ طبيعي",q:"قلقلة",g:"غنّة",f:"إخفاء",c:"إخفاء شفوي",i:"إقلاب",w:"إدغام شفوي",a:"إدغام بغنة",u:"إدغام بلا غنة",d:"إدغام متجانسين",b:"إدغام متقاربين",l:"لام شمسية",h:"همزة وصل",s:"لا يُنطق"};
+const TJC={m:"#8fb0ff",o:"#8fb0ff",p:"#8fb0ff",n:"#8fb0ff",q:"#ff8a8a",g:"#ffa552",f:"#d98cff",c:"#d98cff",i:"#5fd8ff",w:"#6ee7a0",a:"#6ee7a0",u:"#6ee7a0",d:"#6ee7a0",b:"#6ee7a0",l:"#8fa5a1",h:"#8fa5a1",s:"#8fa5a1"};
+const TJO="mopnqgfciwaudblhs";
+const tjParse=raw=>{const codes=[];const plain=raw.replace(/\[([a-z])(?::\d+)?\[([^\]]*)\]/g,(m,c,t)=>{codes.push(c);return t});return{plain,codes}};
+function tjFor(a){ // يرجع null إن لم يتطابق عدد الكلمات مع النص المعروض، فلا يُعرض حكم غير موثوق
+  const raw=tjs&&tjs[a.no-1]; if(!raw) return null;
+  let toks=[];
+  raw.split(" ").forEach(r=>{const p=tjParse(r);if(norm(p.plain)===""&&toks.length){const l=toks[toks.length-1];l.plain+=" "+p.plain;l.codes.push(...p.codes)}else toks.push(p)});
+  if(a.no===1&&curSurah!==1&&toks.length>4&&same(norm("بسم الله الرحمن الرحيم"),norm(toks.slice(0,4).map(t=>t.plain).join(""))))toks=toks.slice(4);
+  return toks.length===words.length?toks:null;
+}
+function applyTajweed(){
+  document.querySelectorAll(".w").forEach(e=>{e.removeAttribute("data-r");e.style.removeProperty("--tc")});
+  if(!$("tj").checked||!tjs||!ayahs[idx]) return;
+  const t=tjFor(ayahs[idx]); if(!t) return;
+  document.querySelectorAll(".w").forEach((e,i)=>{
+    const p=t[i]; if(!p||norm(p.plain)!==norm(words[i])) return; // تطابق صارم للكلمة قبل عرض حكمها
+    const ks=[...new Set(p.codes)].filter(k=>TJN[k]).sort((x,y)=>TJO.indexOf(x)-TJO.indexOf(y));
+    if(!ks.length) return;
+    const major=ks.filter(k=>"lhs".indexOf(k)<0), use=(major.length?major:ks).slice(0,2);
+    e.dataset.r=use.map(k=>TJN[k]).join(" · "); e.style.setProperty("--tc",TJC[use[0]]);
+  });
+}
+async function loadTajweed(n){
+  let t=null; try{t=JSON.parse(localStorage.getItem("tj"+n))}catch{}
+  if(!t){
+    try{
+      const r=(await (await fetch(`https://api.alquran.cloud/v1/surah/${n}/quran-tajweed`)).json()).data.ayahs.map(a=>a.text);
+      if(r.length&&r.every(x=>typeof x==="string")){t=r;try{localStorage.setItem("tj"+n,JSON.stringify(r))}catch{}}
+    }catch{}
+  }
+  if(curSurah!==n) return;
+  tjs=t||false; if(!t) toast("تعذّر تحميل أحكام التجويد. تحتاج إنترنت في أول مرة."); applyTajweed();
+}
+$("tj").addEventListener("change",()=>{
+  try{localStorage.setItem("hifzTj",$("tj").checked?"1":"0")}catch{}
+  $("stage").classList.toggle("tj",$("tj").checked);
+  if($("tj").checked&&tjs===null&&curSurah) loadTajweed(curSurah); else applyTajweed();
+});
+try{$("tj").checked=localStorage.getItem("hifzTj")==="1"}catch{}
+$("stage").classList.toggle("tj",$("tj").checked);
+
+/* ===== أجواء صوتية هادئة (تُولَّد برمجياً بلا ملفات، وتخفت أثناء التلاوة) ===== */
+function noise(ctx,kind){
+  const b=ctx.createBuffer(1,ctx.sampleRate*4,ctx.sampleRate), d=b.getChannelData(0); let l=0;
+  for(let i=0;i<d.length;i++){const x=Math.random()*2-1; if(kind==="brown"){l=(l+.02*x)/1.02;d[i]=l*3.5}else d[i]=x}
+  return b;
+}
+function ambNode(ctx,kind,freq,out){
+  const s=ctx.createBufferSource(); s.buffer=noise(ctx,kind); s.loop=true;
+  const f=ctx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=freq;
+  s.connect(f); f.connect(out); s.start(); return s;
+}
+function chirp(ctx,out){ // صرير ليل خفيف: نبضات قصيرة
+  const t=ctx.currentTime, f=4200+Math.random()*400;
+  for(let k=0;k<3;k++){
+    const o=ctx.createOscillator(), g=ctx.createGain(), s=t+k*.07; o.frequency.value=f; g.gain.value=0;
+    o.connect(g); g.connect(out);
+    g.gain.setValueAtTime(0,s); g.gain.linearRampToValueAtTime(.06,s+.01); g.gain.linearRampToValueAtTime(0,s+.05);
+    o.start(s); o.stop(s+.06);
+  }
+}
+function ambLevel(){ if(amb) amb.g.gain.setTargetAtTime(reciting?0:+$("amb-vol").value,AC.currentTime,.5) }
+function ambStop(){
+  const a=amb; if(!a) return; amb=null;
+  a.g.gain.setTargetAtTime(0,AC.currentTime,.2); clearInterval(a.iv);
+  setTimeout(()=>a.src.forEach(s=>{try{s.stop()}catch{}}),1200);
+}
+function ambStart(kind){
+  ambStop(); if(kind==="off") return;
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(); AC.resume()}catch{return}
+  const g=AC.createGain(); g.gain.value=0; g.connect(AC.destination); amb={g,src:[],iv:0};
+  if(kind==="rain") amb.src.push(ambNode(AC,"white",5000,g),ambNode(AC,"brown",250,g));
+  else{ amb.src.push(ambNode(AC,"brown",500,g)); amb.iv=setInterval(()=>{if(AC.state==="running"&&Math.random()<.7)chirp(AC,g)},1300) }
+  ambLevel();
+}
+const ap=(()=>{try{return JSON.parse(localStorage.getItem("hifzAmb"))||{}}catch{return{}}})();
+$("amb").value=ap.k||"off"; $("amb-vol").value=ap.v||.25;
+const saveAmb=()=>{try{localStorage.setItem("hifzAmb",JSON.stringify({k:$("amb").value,v:+$("amb-vol").value}))}catch{}};
+$("amb").onchange=()=>{saveAmb();ambStart($("amb").value)};
+$("amb-vol").oninput=()=>{saveAmb();ambLevel()};
+const arm=()=>{if($("amb").value!=="off"&&!amb)ambStart($("amb").value)}; // المتصفح يشترط تفاعلاً قبل تشغيل الصوت
+document.addEventListener("pointerdown",arm,{once:true}); document.addEventListener("keydown",arm,{once:true});
 
 renderStats(); renderWird(); loadSurahList();

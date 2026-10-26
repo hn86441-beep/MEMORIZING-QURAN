@@ -16,7 +16,7 @@ const same = (typed,target) => {
 };
 
 const tokens=t=>t.split(" ").reduce((o,w)=>{if(norm(w)===""&&o.length)o[o.length-1]+=" "+w;else o.push(w);return o},[]); // علامات الوقف تُلحق بالكلمة السابقة
-let prog=false, stg=1, locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
+let tfs=null, curSurah=0, prog=false, stg=1, locked=false, ayahs=[], idx=0, wi=0, words=[], look=false, errors=0, typed=0, surahName="";
 const store = {
   get(){try{return JSON.parse(localStorage.getItem("hifz"))||{}}catch{return{}}},
   set(v){try{localStorage.setItem("hifz",JSON.stringify(v))}catch{}}
@@ -70,7 +70,7 @@ async function start(){
   }catch{alert("تعذر تحميل السورة. تحقق من الإنترنت وحاول مرة أخرى.");$("start").disabled=false;return}
   $("start").disabled=false; idx=0; errors=0; typed=0; stg=1;
   if(!ayahs.length){alert("هذا النطاق خارج آيات السورة. اختر آيات موجودة.");return}
-  $("empty").hidden=$("done").hidden=true; $("stage").hidden=false; loadAyah(); loadQuran();
+  $("empty").hidden=$("done").hidden=true; $("stage").hidden=false; tfs=null; curSurah=n; loadAyah(); loadQuran(); loadTafsir(n);
 }
 function loadAyah(){
   const a=ayahs[idx]; words=tokens(a.text); wi=0;
@@ -83,6 +83,7 @@ function loadAyah(){
     const hid=new Set([...words.keys()].sort(()=>Math.random()-.5).slice(0,hide));
     document.querySelectorAll(".w").forEach((e,i)=>e.classList.toggle("show",!hid.has(i)));
   }
+  showTafsir();
   locked=false; if(!cont)stop(); $("similar").hidden=true; mark(); $("typer").value=""; $("typer").focus();
   if($("auto").checked&&!cont) play();
 }
@@ -287,5 +288,25 @@ $("w-save").onclick=async e=>{
   lastSync=""; renderWird();
   if(msg) $("w-msg").textContent=msg; else $("wird").close();
 };
+
+/* ===== التفسير الميسر ===== */
+const TAFSIR_SRC=[
+  async n=>(await (await fetch(`https://api.alquran.cloud/v1/surah/${n}/ar.muyassar`)).json()).data.ayahs.map(a=>a.text),
+  async n=>{const a=(await (await fetch(`https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir/ar-tafsir-muyassar/${n}.json`)).json()).ayahs;const o=[];a.forEach(x=>o[x.ayah-1]=x.text);return o}
+];
+async function loadTafsir(n){
+  let t=null; try{t=JSON.parse(localStorage.getItem("tf"+n))}catch{}
+  if(!t) for(const src of TAFSIR_SRC){
+    try{ const r=await src(n); if(Array.isArray(r)&&r.length&&r.some(x=>typeof x==="string"&&x.trim())){t=r;try{localStorage.setItem("tf"+n,JSON.stringify(r))}catch{}break} }catch{}
+  }
+  if(curSurah!==n) return;
+  tfs=t||false; showTafsir();
+}
+function showTafsir(){
+  const a=ayahs[idx]; if(!a) return;
+  $("tafsir-text").textContent=tfs===null?"جارٍ تحميل التفسير…":tfs===false?"تعذّر تحميل التفسير. يحتاج إنترنت في أول مرة ثم يُحفظ على جهازك.":(tfs[a.no-1]||"لا يتوفر تفسير لهذه الآية.");
+}
+try{$("tafsir").open=localStorage.getItem("hifzTafsir")!=="0"}catch{$("tafsir").open=true}
+$("tafsir").addEventListener("toggle",()=>{try{localStorage.setItem("hifzTafsir",$("tafsir").open?"1":"0")}catch{}});
 
 renderStats(); renderWird(); loadSurahList();

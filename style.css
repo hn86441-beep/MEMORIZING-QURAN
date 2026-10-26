@@ -67,4 +67,9 @@ dialog label{margin-bottom:10px}
 .tafsir{max-width:640px;margin:18px auto 0;background:var(--panel);border-radius:10px;padding:10px 16px;text-align:right}
 .tafsir summary{cursor:pointer;color:var(--gold);font-size:.9rem}
 .tafsir p{margin:10px 0 4px;font-size:1rem;line-height:2.1}
+.w{position:relative}
+.tj .ayah{column-gap:1.2em}
+.tj .w[data-r]::before{content:attr(data-r);position:absolute;top:.2rem;left:50%;transform:translateX(-50%);font:600 .6rem/1 "Readex Pro",sans-serif;color:var(--tc,#8fa5a1);white-space:nowrap;pointer-events:none}
+.ambient{display:flex;gap:16px;justify-content:center;align-items:end;flex-wrap:wrap;margin:-6px 0 16px}
+input[type=range]{accent-color:var(--gold)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

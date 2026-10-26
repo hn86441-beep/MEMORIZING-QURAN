@@ -64,4 +64,7 @@ dialog::backdrop{background:#000b}
 dialog h2{margin:0 0 12px;font-family:"Amiri Quran",serif;color:var(--gold);font-weight:400}
 dialog label{margin-bottom:10px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--ink);padding:10px 18px;border-radius:10px;font-weight:600;z-index:9}
+.tafsir{max-width:640px;margin:18px auto 0;background:var(--panel);border-radius:10px;padding:10px 16px;text-align:right}
+.tafsir summary{cursor:pointer;color:var(--gold);font-size:.9rem}
+.tafsir p{margin:10px 0 4px;font-size:1rem;line-height:2.1}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
